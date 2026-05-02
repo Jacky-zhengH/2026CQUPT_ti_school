@@ -70,17 +70,29 @@ void Task_Debug_Sample_value(void)
          * 数据处理
          * 比如将采样值转成数据值
          */
-        float v_in = (float)AD7606_Channel_Data[0] * AD7606_VOLTAGE_LSB;  // ch1
-        float v_s = (float)AD7606_Channel_Data[1] * AD7606_VOLTAGE_LSB;   // ch2
-        float v_out = (float)AD7606_Channel_Data[2] * AD7606_VOLTAGE_LSB; // ch3
+        // 数据抓取
+        int16_t raw_ch1 = AD7606_Channel_Data[0];
+        int16_t raw_ch2 = AD7606_Channel_Data[1];
+        int16_t raw_ch3 = AD7606_Channel_Data[2];
 
-        Debug_printf("[ADC Raw] CH1:%6d | CH2:%6d | CH3:%6d\r\n",
-                     AD7606_Channel_Data[0], AD7606_Channel_Data[1], AD7606_Channel_Data[2]);
-        Debug_printf("[Voltage] Vin: %7.3f V | Vs: %7.3f V | Vout: %7.3f V\r\n",
-                     v_in, v_s, v_out);
-        Debug_printf("---------------------------------------------------\r\n");
         // 清除标志位，允许数据更新(待添加)
         AD7606_Data_Ready = 0;
+
+        float v_in = (float)raw_ch1 * AD7606_VOLTAGE_LSB;  // ch1
+        float v_s = (float)raw_ch2 * AD7606_VOLTAGE_LSB;   // ch2
+        float v_out = (float)raw_ch3 * AD7606_VOLTAGE_LSB; // ch3
+
+        static uint16_t print_cnt = 0;
+        if (++print_cnt >= 10000)
+        {
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            print_cnt = 0;
+            Debug_printf("[ADC Raw] CH1:%6d | CH2:%6d | CH3:%6d\r\n",
+                         raw_ch1, raw_ch2, raw_ch3);
+            Debug_printf("[Voltage] Vin: %7.3f V | Vs: %7.3f V | Vout: %7.3f V\r\n",
+                         v_in, v_s, v_out);
+            Debug_printf("---------------------------------------------------\r\n");
+        }
     }
 }
 
