@@ -1,5 +1,5 @@
 #include "bsp_AD7606.h"
-
+#include "tim.h"
 //=======================================
 // 变量声明
 //=======================================
@@ -25,14 +25,14 @@ static void Delay_u32(uint32_t nCount)
  * @param   无
  * @note    产生低电平触发一次同步转
  */
-void AD7606_STARTCONV(void)
-{
-    AD7606_CONVST_A_L;
-    AD7606_CONVST_B_L;
-    Delay_u32(50);
-    AD7606_CONVST_A_H;
-    AD7606_CONVST_A_H;
-}
+// void AD7606_STARTCONV(void)
+// {
+//     AD7606_CONVST_A_L;
+//     AD7606_CONVST_B_L;
+//     Delay_u32(50);
+//     AD7606_CONVST_A_H;
+//     AD7606_CONVST_A_H;
+// }
 
 /**
  * @brief   AD7606硬件复位函数
@@ -112,12 +112,16 @@ void AD7606_Init(void)
     // 引脚默认状态
     AD7606_CS_H;
     AD7606_SCLK_H;
-    AD7606_CONVST_A_H;
-    AD7606_CONVST_B_H;
+    // AD7606_CONVST_A_H;
+    // AD7606_CONVST_B_H;
 
     // 初始化复位，无过采样
     AD7606_SETOS(0);
     AD7606_RESET();
+
+    // 启动CONV_A和CONV_B PWM触发
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
 }
 
 /**
@@ -131,51 +135,67 @@ static int16_t AD7606_OneChanel_ReadBytes(void)
     for (uint8_t i = 0; i < 16; i++)
     {
         AD7606_SCLK_L;
-        Delay_u32(10); // 等待稳定
+        Delay_u32(5); // 等待稳定
         usData = usData << 1;
         if (AD7606_DOUTA == GPIO_PIN_SET)
         {
             usData |= 0x0001;
         }
         AD7606_SCLK_H;
-        Delay_u32(10);
+        Delay_u32(5);
     }
     return (int16_t)usData;
 }
 
+//*********************************************************************************************************
+// GPIO EXTI 中断服务函数
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == GPIO_PIN_3)
+    {
+        AD7606_CS_L;
+
+        AD7606_Channel_Data[0] = AD7606_OneChanel_ReadBytes();
+        AD7606_Channel_Data[1] = AD7606_OneChanel_ReadBytes();
+        AD7606_Channel_Data[2] = AD7606_OneChanel_ReadBytes();
+        AD7606_CS_H; // 传输完毕拉高CS片选
+        // 4. 标记数据准备完成
+        AD7606_Data_Ready = 1;
+    }
+}
 //*********************************************************************************************************
 /**
  * @brief   多通道轮询函数
  * @param   无
  * @note    只读取前 3 个通道 (CH1, CH2, CH3)
  */
-void AD7606_Sample_Task(void)
-{
-    // 如果数据还没被处理完，防止覆盖
-    if (AD7606_Data_Ready == 1)
-        return;
+// void AD7606_Sample_Task(void)
+// {
+//     // 如果数据还没被处理完，防止覆盖
+//     if (AD7606_Data_Ready == 1)
+//         return;
 
-    // 1. 发送触发脉冲
-    AD7606_STARTCONV();
+//     // 1. 发送触发脉冲
+//     AD7606_STARTCONV();
 
-    // 2. 等待转换完成 (BUSY从高变低)
-    uint32_t timeout = 10000;
-    while (AD7606_BUSY == GPIO_PIN_SET && timeout--)
-        ;
-    // 超时防止死机
+//     // 2. 等待转换完成 (BUSY从高变低)
+//     uint32_t timeout = 10000;
+//     while (AD7606_BUSY == GPIO_PIN_SET && timeout--)
+//         ;
+//     // 超时防止死机
 
-    if (timeout > 0)
-    {
-        // 3. 开始串行读取
-        AD7606_CS_L;
+//     if (timeout > 0)
+//     {
+//         // 3. 开始串行读取
+//         AD7606_CS_L;
 
-        // 顺序读取 CH1, CH2, CH3
-        for (uint8_t i = 0; i < 3; i++)
-        {
-            AD7606_Channel_Data[i] = AD7606_OneChanel_ReadBytes();
-        }
-        AD7606_CS_H; // 传输完毕拉高CS片选
-        // 4. 标记数据准备完成
-        AD7606_Data_Ready = 1;
-    }
-}
+//         // 顺序读取 CH1, CH2, CH3
+//         for (uint8_t i = 0; i < 3; i++)
+//         {
+//             AD7606_Channel_Data[i] = AD7606_OneChanel_ReadBytes();
+//         }
+//         AD7606_CS_H; // 传输完毕拉高CS片选
+//         // 4. 标记数据准备完成
+//         AD7606_Data_Ready = 1;
+//     }
+// }

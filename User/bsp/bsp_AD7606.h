@@ -42,4 +42,10 @@ extern volatile uint8_t AD7606_Data_Ready;
 // 3. AD7606函数声明
 //=======================================
 
+void AD7606_Init(void);
+// void AD7606_STARTCONV(void);
+void AD7606_SETOS(uint8_t osv);
+void AD7606_RESET(void);
+// void AD7606_Sample_Task(void);
+
 #endif /* __BSP_AD7606_H */

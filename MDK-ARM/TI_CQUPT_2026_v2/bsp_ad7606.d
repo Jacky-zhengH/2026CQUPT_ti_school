@@ -40,3 +40,5 @@ ti_cqupt_2026_v2\bsp_ad7606.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal
 ti_cqupt_2026_v2\bsp_ad7606.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 ti_cqupt_2026_v2\bsp_ad7606.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 ti_cqupt_2026_v2\bsp_ad7606.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+ti_cqupt_2026_v2\bsp_ad7606.o: ../Core/Inc/tim.h
+ti_cqupt_2026_v2\bsp_ad7606.o: ../Core/Inc/main.h
