@@ -11,10 +11,16 @@ extern volatile uint8_t AD7606_Data_Ready;      // AD7606 数据处理标志位
 //*********************************************************************************************************
 static uint8_t hmi_rx_buffer[50]; // HMI 接收缓冲区
 static char debug_buffer[128];    // 电脑串口调试 接收缓冲区
-// static uint8_t hmi_cmd_flag = 0;  // 新指令标志位 (0 = false)
-// static uint16_t hmi_cmd_size = 0; // 新指令长度
+static uint8_t hmi_cmd_flag = 0;  // 新指令标志位 (0 = false)
+static uint16_t hmi_cmd_size = 0; // 新指令长度
+
 //*********************************************************************************************************
 #define AD7606_VOLTAGE_LSB (10.0f / 32768.0f); // 电压转换参数
+// 继电器控制宏 (PE7)
+#define RELAY_ON() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_SET)
+#define RELAY_OFF() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_RESET)
+#define R_LOAD 1000.0f   // 测试仪内部负载电阻为 1kΩ
+#define R_SERIES 1000.0f // 信号源分压电阻为 1kΩ
 //*********************************************************************************************************
 /**
  * @name    HMI_Process_Init()
@@ -24,6 +30,7 @@ static char debug_buffer[128];    // 电脑串口调试 接收缓冲区
  */
 void HMI_Process_Init(void)
 {
+    RELAY_OFF();
     // 启动HMI串口(USART1)的空闲中断DMA接收
     HAL_UARTEx_ReceiveToIdle_DMA(&huart1, hmi_rx_buffer, sizeof(hmi_rx_buffer));
 }
@@ -62,6 +69,26 @@ void Debug_printf(const char *text, ...)
     }
 }
 
+// 封装：向串口屏特定文本控件发送浮点数
+static void HMI_Update_FloatText(const char *obj_name, float value, const char *unit)
+{
+    char buf[64];
+    // 陶晶驰/Nextion 格式: t0.txt="1.23V"
+    snprintf(buf, sizeof(buf), "%s.txt=\"%.2f %s\"", obj_name, value, unit);
+    HMI_Send_Cmd(buf);
+}
+
+// 封装：向串口屏特定文本控件发送字符串
+static void HMI_Update_StringText(const char *obj_name, const char *str)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s.txt=\"%s\"", obj_name, str);
+    HMI_Send_Cmd(buf);
+}
+
+/**
+ * @brief AD7606采集调试函数
+ */
 void Task_Debug_Sample_value(void)
 {
     if (AD7606_Data_Ready == 1) // 数据转换-接收完毕（标志位待添加）
@@ -93,6 +120,24 @@ void Task_Debug_Sample_value(void)
                          v_in, v_s, v_out);
             Debug_printf("---------------------------------------------------\r\n");
         }
+    }
+}
+
+//*********************************************************************************************************
+/**
+ * @brief 重新定义USART中断回调函数
+ */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    if (huart->Instance == USART1) // 检测目前串口是否是USART1，即串口屏
+    {
+        if (hmi_cmd_flag == 0) // 上一轮的接收是否已经完成（完成后flag会置零）
+        {
+            hmi_cmd_flag = 1;    // 重新开始接收下一轮指令（flag重新置一，说明正在接收）
+            hmi_cmd_size = Size; // 保存指令长度（用于解析指令）
+        }
+        //
+        HAL_UARTEx_ReceiveToIdle_DMA(huart, hmi_rx_buffer, sizeof(hmi_rx_buffer));
     }
 }
 

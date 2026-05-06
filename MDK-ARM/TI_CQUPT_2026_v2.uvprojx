@@ -720,6 +720,13 @@
         </Group>
         <Group>
           <GroupName>User/alog</GroupName>
+          <Files>
+            <File>
+              <FileName>alog.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\alog\alog.h</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>User</GroupName>
@@ -730,9 +737,6 @@
               <FilePath>..\User\header.h</FilePath>
             </File>
           </Files>
-        </Group>
-        <Group>
-          <GroupName>::CMSIS</GroupName>
         </Group>
         <Group>
           <GroupName>Middlewares/Library/DSP Library/DSP Library</GroupName>
@@ -831,6 +835,9 @@
               </FileOption>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>
     </Target>
