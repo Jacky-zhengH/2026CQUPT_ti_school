@@ -46,3 +46,4 @@ ti_cqupt_2026_v2\main.o: ../Middlewares/ST/ARM/DSP/Inc/arm_math.h
 ti_cqupt_2026_v2\main.o: D:\Program Files\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 ti_cqupt_2026_v2\main.o: D:\Program Files\Keil_v5\ARM\ARMCC\Bin\..\include\float.h
 ti_cqupt_2026_v2\main.o: D:\Program Files\Keil_v5\ARM\ARMCC\Bin\..\include\limits.h
+ti_cqupt_2026_v2\main.o: ../User/bsp/bsp_AD9833.h

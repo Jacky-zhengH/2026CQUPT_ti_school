@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "app_process.h"
 #include "bsp_AD7606.h"
+#include "bsp_AD9833.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -97,6 +98,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   Debug_printf("------SYSTEM BOOT------\r\n");
   AD7606_Init();
+  HMI_Process_Init();
+  AD9833_WaveSeting(10000.0, 0, SIN_WAVE, 0);
+  AD9833_AmpSet(180);
   Debug_printf("------Init finished:start sample------\r\n");
   /* USER CODE END 2 */
 
@@ -105,7 +109,7 @@ int main(void)
   while (1)
   {
     // AD7606_Sample_Task();
-    Task_Debug_Sample_value();
+    App_Main_Process_Poll();
     /**
      *待提添加调试指令
      */

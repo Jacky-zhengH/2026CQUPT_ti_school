@@ -41,3 +41,4 @@ ti_cqupt_2026_v2\app_process.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ha
 ti_cqupt_2026_v2\app_process.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 ti_cqupt_2026_v2\app_process.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 ti_cqupt_2026_v2\app_process.o: ../User/bsp/bsp_AD7606.h
+ti_cqupt_2026_v2\app_process.o: ../User/alog/alog.h

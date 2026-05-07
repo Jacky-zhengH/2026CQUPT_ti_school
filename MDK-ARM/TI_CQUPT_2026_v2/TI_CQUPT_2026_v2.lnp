@@ -27,6 +27,7 @@
 "ti_cqupt_2026_v2\bsp_ad7606.o"
 "ti_cqupt_2026_v2\bsp_ad9833.o"
 "ti_cqupt_2026_v2\app_process.o"
+"ti_cqupt_2026_v2\alog.o"
 "../Middlewares/ST/ARM/DSP/Lib/arm_cortexM4lf_math.lib"
 --strict --scatter "TI_CQUPT_2026_v2\TI_CQUPT_2026_v2.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols

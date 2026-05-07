@@ -1,15 +1,15 @@
-#ifndef __ALGO_H
-#define __ALGO_H
+#ifndef __ALOG_H
+#define __ALOG_H
 
 #include "stdint.h"
 
-// µÚ¶şÎÊ£º²ÎÊı¼ÆËã½Ó¿Ú
+// ç¬¬äºŒé—®ï¼šå‚æ•°è®¡ç®—æ¥å£
 float Algo_Measure_Gain(float v_in_amp, float v_out_amp);
 float Algo_Measure_Rin(float v_source, float v_in_amp);
 float Algo_Measure_Rout(float v_out_open, float v_out_load);
 
-// µÚÈıÎÊ£º¹ÊÕÏÕï¶Ï½Ó¿Ú
-// ·µ»ØÖµ¿ÉÒÔÊÇ¹ÊÕÏÀàĞÍµÄ´úºÅ£¬ÀıÈç 0:Õı³£, 1:R1·­±¶, 2:R2·­±¶...
-uint8_t Algo_Diagnosis_Fault(float current_gain, float current_rin, float current_rout, float current_vdc);
+// ç¬¬ä¸‰é—®ï¼šæ•…éšœè¯Šæ–­æ¥å£
+// è¿”å›å€¼å¯ä»¥æ˜¯æ•…éšœç±»å‹çš„ä»£å·ï¼Œä¾‹å¦‚ 0:æ­£å¸¸, 1:R1ç¿»å€, 2:R2ç¿»å€...
+uint8_t Algo_Diagnosis_Fault(float current_gain, float current_rin, float current_rout);
 
 #endif /* __ALGO_H */

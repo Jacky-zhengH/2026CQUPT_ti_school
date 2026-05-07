@@ -1,7 +1,7 @@
 #include "app_process.h"
 #include "header.h"
 #include "bsp_AD7606.h"
-
+#include "alog.h"
 #include "header.h"
 //*********************************************************************************************************
 extern UART_HandleTypeDef huart1;               // HMI 控制串口
@@ -15,6 +15,9 @@ static uint8_t hmi_cmd_flag = 0;  // 新指令标志位 (0 = false)
 static uint16_t hmi_cmd_size = 0; // 新指令长度
 
 //*********************************************************************************************************
+float global_v1 = 0.0f, global_v2 = 0.0f, global_v3 = 0.0f;      // 实时采集的三路电压
+float global_gain = 0.0f, global_rin = 0.0f, global_rout = 0.0f; // 第二问测量参数
+
 #define AD7606_VOLTAGE_LSB (10.0f / 32768.0f); // 电压转换参数
 // 继电器控制宏 (PE7)
 #define RELAY_ON() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_SET)
@@ -74,7 +77,7 @@ static void HMI_Update_FloatText(const char *obj_name, float value, const char *
 {
     char buf[64];
     // 陶晶驰/Nextion 格式: t0.txt="1.23V"
-    snprintf(buf, sizeof(buf), "%s.txt=\"%.2f %s\"", obj_name, value, unit);
+    snprintf(buf, sizeof(buf), "%s.txt=\"%.5f %s\"", obj_name, value, unit);
     HMI_Send_Cmd(buf);
 }
 
@@ -85,7 +88,6 @@ static void HMI_Update_StringText(const char *obj_name, const char *str)
     snprintf(buf, sizeof(buf), "%s.txt=\"%s\"", obj_name, str);
     HMI_Send_Cmd(buf);
 }
-
 /**
  * @brief AD7606采集调试函数
  */
@@ -121,6 +123,168 @@ void Task_Debug_Sample_value(void)
             Debug_printf("---------------------------------------------------\r\n");
         }
     }
+}
+
+/**
+ * @name   Task_ADC_Data_Update
+ * @brief  任务一：实时抓取底层ADC数据并更新全局电压变量
+ */
+static void Task_ADC_Data_Update(void)
+{
+    if (AD7606_Data_Ready == 1)
+    {
+        // 抓取并转换数据
+        global_v1 = (float)AD7606_Channel_Data[0] * AD7606_VOLTAGE_LSB;
+        global_v2 = (float)AD7606_Channel_Data[1] * AD7606_VOLTAGE_LSB;
+        global_v3 = (float)AD7606_Channel_Data[2] * AD7606_VOLTAGE_LSB;
+
+        AD7606_Data_Ready = 0; // 释放标志位，允许底层继续采集
+    }
+}
+
+static void Task_Measure_StateMachine(void)
+{
+    typedef enum
+    {
+        STATE_OPEN = 0,
+        STATE_RELAY_WAIT,
+        STATE_LOAD,
+        STATE_IDLE_DELAY
+    } MeasState_t;
+
+    static MeasState_t current_state = STATE_OPEN;
+    static uint32_t state_timer = 0;
+    static float v3_open_temp = 0.0f;
+
+    switch (current_state)
+    {
+    case STATE_OPEN:
+        v3_open_temp = global_v3;
+        // 调用 algo 层：计算空载增益和输入电阻
+        global_gain = Algo_Measure_Gain(global_v2, v3_open_temp);
+        global_rin = Algo_Measure_Rin(global_v1, global_v2);
+
+        // 闭合继电器，准备测输出电阻
+        RELAY_ON();
+        state_timer = HAL_GetTick();
+        current_state = STATE_RELAY_WAIT;
+        break;
+
+    case STATE_RELAY_WAIT:
+        if (HAL_GetTick() - state_timer > 50) // 等 50ms 机械稳定
+        {
+            current_state = STATE_LOAD;
+        }
+        break;
+
+    case STATE_LOAD:
+        // 调用 algo 层：计算输出电阻
+        global_rout = Algo_Measure_Rout(v3_open_temp, global_v3);
+
+        RELAY_OFF(); // 立马断开，保护硬件
+
+        state_timer = HAL_GetTick();
+        current_state = STATE_IDLE_DELAY;
+        break;
+
+    case STATE_IDLE_DELAY:
+        if (HAL_GetTick() - state_timer > 1500) // 休息 1.5 秒再开启下一轮测算
+        {
+            current_state = STATE_OPEN;
+        }
+        break;
+    }
+}
+
+/**
+ * @name   Task_HMI_Display_Update
+ * @brief  任务三：以固定频率刷新 HMI 屏幕显示 (避免频繁通信卡死串口)
+ */
+static void Task_HMI_Display_Update(void)
+{
+    static uint32_t display_timer = 0;
+
+    // 每 200 毫秒刷新一次屏幕 (人眼看着很流畅，且节约资源)
+    if (HAL_GetTick() - display_timer > 200)
+    {
+        display_timer = HAL_GetTick();
+
+        // 刷新实时电压 (对应屏幕 t3, t4, t5)
+        HMI_Update_FloatText("t3", global_v1, "V");
+        HMI_Update_FloatText("t4", global_v2, "V");
+        HMI_Update_FloatText("t5", global_v3, "V");
+
+        Debug_printf("[Voltage] Vin: %7.3f V | Vs: %7.3f V | Vout: %7.3f V\r\n",
+                     global_v1, global_v2, global_v3);
+        // 刷新第二问参数 (对应屏幕 t10, t11, t12)
+        HMI_Update_FloatText("t10", global_gain, "");
+        HMI_Update_FloatText("t11", global_rin, "R");
+        HMI_Update_FloatText("t12", global_rout, "R");
+        Debug_printf("[second] 1: %7.3f V | 2: %7.3f V | 3: %7.3f V\r\n",
+                     global_gain, global_rin, global_rout);
+    }
+}
+
+static void Task_HMI_Command_Process(void)
+{
+    if (hmi_cmd_flag == 1)
+    {
+        if (hmi_rx_buffer[0] == 'E')
+        {
+            HMI_Update_StringText("t9", "wait...");
+            uint8_t fault_code = Algo_Diagnosis_Fault(global_gain, global_rin, global_rout);
+
+            switch (fault_code)
+            {
+            case 0:
+                HMI_Update_StringText("t9", "normal");
+                break;
+            case 1:
+                HMI_Update_StringText("t9", "R1");
+                break;
+            case 2:
+                HMI_Update_StringText("t9", "R2");
+                break;
+            case 3:
+                HMI_Update_StringText("t9", "R3");
+                break;
+            case 4:
+                HMI_Update_StringText("t9", "R4");
+                break;
+            case 5:
+                HMI_Update_StringText("t9", "R5");
+                break;
+            case 6:
+                HMI_Update_StringText("t9", "RL");
+                break;
+            default:
+                HMI_Update_StringText("t9", "UNknown");
+                break;
+            }
+        }
+        else if (hmi_rx_buffer[0] == 'B')
+        {
+            Algo_Set_Baseline(global_gain, global_rin, global_rout);
+            HMI_Update_StringText("t9", "base");
+        }
+        hmi_cmd_flag = 0;
+    }
+}
+//=========================================================================================================
+// 3. 主轮询整合与中断回调
+//=========================================================================================================
+
+/**
+ * @name   App_Main_Process_Poll
+ * @brief  放置于 main.c 的 while(1) 中，作为大管家统筹调度所有任务
+ */
+void App_Main_Process_Poll(void)
+{
+    // HMI_Update_FloatText("t3",0.0f,"V");
+    Task_ADC_Data_Update();      // 极速更新实时数据
+    Task_Measure_StateMachine(); // 维持继电器状态机运转
+    Task_HMI_Display_Update();   // 周期性刷新屏幕 UI
+    Task_HMI_Command_Process();  // 随时响应用户触摸指令
 }
 
 //*********************************************************************************************************

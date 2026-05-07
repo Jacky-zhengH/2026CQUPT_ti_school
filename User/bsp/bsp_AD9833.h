@@ -3,12 +3,11 @@
 
 #include "stdint.h"
 
-#define TRI_WAVE 0 // Êä³öÈý½Ç²¨
-#define SIN_WAVE 1 // Êä³öÕýÏÒ²¨
-#define SQU_WAVE 2 // Êä³ö·½²¨
+#define TRI_WAVE 0 // è¾“å‡ºä¸‰è§’æ³¢
+#define SIN_WAVE 1 // è¾“å‡ºæ­£å¼¦æ³¢
+#define SQU_WAVE 2 // è¾“å‡ºæ–¹æ³¢
 
 void AD9833_WaveSeting(double frequence, unsigned int frequence_SFR, unsigned int WaveMode, unsigned int Phase);
 void AD9833_AmpSet(unsigned char amp);
-
 
 #endif
