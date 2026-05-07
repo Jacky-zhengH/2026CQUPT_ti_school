@@ -18,12 +18,10 @@ static uint16_t hmi_cmd_size = 0; // 新指令长度
 float global_v1 = 0.0f, global_v2 = 0.0f, global_v3 = 0.0f;      // 实时采集的三路电压
 float global_gain = 0.0f, global_rin = 0.0f, global_rout = 0.0f; // 第二问测量参数
 
-#define AD7606_VOLTAGE_LSB (10.0f / 32768.0f); // 电压转换参数
+#define AD7606_VOLTAGE_LSB (10.0f / 32768.0f) // 电压转换参数
 // 继电器控制宏 (PE7)
 #define RELAY_ON() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_SET)
 #define RELAY_OFF() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_RESET)
-#define R_LOAD 1000.0f   // 测试仪内部负载电阻为 1kΩ
-#define R_SERIES 1000.0f // 信号源分压电阻为 1kΩ
 //*********************************************************************************************************
 /**
  * @name    HMI_Process_Init()
@@ -35,7 +33,8 @@ void HMI_Process_Init(void)
 {
     RELAY_OFF();
     // 启动HMI串口(USART1)的空闲中断DMA接收
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, hmi_rx_buffer, sizeof(hmi_rx_buffer));
+    // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, hmi_rx_buffer, sizeof(hmi_rx_buffer));
+    HAL_UART_Receive_IT(&huart1, hmi_rx_buffer, 1);
 }
 
 /**
@@ -125,18 +124,45 @@ void Task_Debug_Sample_value(void)
     }
 }
 
+#define FILTER_N 10 // 滑动滤波窗口大小，越大越平滑，但响应越慢
+
 /**
  * @name   Task_ADC_Data_Update
  * @brief  任务一：实时抓取底层ADC数据并更新全局电压变量
  */
 static void Task_ADC_Data_Update(void)
 {
+    static float buf_v1[FILTER_N], buf_v2[FILTER_N], buf_v3[FILTER_N];
+    static uint8_t filter_idx = 0;
+    static uint8_t filter_cnt = 0;
     if (AD7606_Data_Ready == 1)
     {
         // 抓取并转换数据
-        global_v1 = (float)AD7606_Channel_Data[0] * AD7606_VOLTAGE_LSB;
-        global_v2 = (float)AD7606_Channel_Data[1] * AD7606_VOLTAGE_LSB;
-        global_v3 = (float)AD7606_Channel_Data[2] * AD7606_VOLTAGE_LSB;
+        // global_v1 = (float)AD7606_Channel_Data[0] * AD7606_VOLTAGE_LSB;
+        // global_v2 = (float)AD7606_Channel_Data[1] * AD7606_VOLTAGE_LSB;
+        // global_v3 = (float)AD7606_Channel_Data[2] * AD7606_VOLTAGE_LSB;
+
+        buf_v1[filter_idx] = fabs((float)AD7606_Channel_Data[0] * AD7606_VOLTAGE_LSB);
+        buf_v2[filter_idx] = fabs((float)AD7606_Channel_Data[1] * AD7606_VOLTAGE_LSB);
+        buf_v3[filter_idx] = fabs((float)AD7606_Channel_Data[2] * AD7606_VOLTAGE_LSB);
+
+        filter_idx = (filter_idx + 1) % FILTER_N;
+        if (filter_cnt < FILTER_N)
+            filter_cnt++;
+
+        // 2. 计算滑动平均值
+        float sum1 = 0, sum2 = 0, sum3 = 0;
+        for (int i = 0; i < filter_cnt; i++)
+        {
+            sum1 += buf_v1[i];
+            sum2 += buf_v2[i];
+            sum3 += buf_v3[i];
+        }
+
+        // 3. 输出极度平滑的最终电压
+        global_v1 = sum1 / filter_cnt;
+        global_v2 = sum2 / filter_cnt;
+        global_v3 = sum3 / filter_cnt;
 
         AD7606_Data_Ready = 0; // 释放标志位，允许底层继续采集
     }
@@ -227,8 +253,30 @@ static void Task_HMI_Display_Update(void)
 
 static void Task_HMI_Command_Process(void)
 {
+    Debug_printf("flag = %d\r\n", hmi_cmd_flag);
     if (hmi_cmd_flag == 1)
     {
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // 指示灯闪烁
+        Debug_printf("=> RX Trig! Size:%d, Data[0]:%c (Hex:%02X)\r\n",
+                     hmi_cmd_size, hmi_rx_buffer[0], hmi_rx_buffer[0]);
+
+        // if (hmi_rx_buffer[0] == 'A') // 诉求：按下测量按钮，刷新第二问 HMI
+        // {
+        //     Debug_printf("=> Button A Pressed: Update Display\r\n");
+
+        //     // 将后台算好的平滑电压上屏
+        //     HMI_Update_FloatText("t3", global_v1, "V");
+        //     HMI_Update_FloatText("t4", global_v2, "V");
+        //     HMI_Update_FloatText("t5", global_v3, "V");
+
+        //     // 将第二问参数上屏
+        //     HMI_Update_FloatText("t10", global_gain, "");
+        //     HMI_Update_FloatText("t11", global_rin, "R");
+        //     HMI_Update_FloatText("t12", global_rout, "R");
+
+        //     // 顺便在电脑串口打印，方便你们排查
+        //     Debug_printf("[Meas] Gain:%.2f | Rin:%.1f | Rout:%.1f\r\n", global_gain, global_rin, global_rout);
+        // }
         if (hmi_rx_buffer[0] == 'E')
         {
             HMI_Update_StringText("t9", "wait...");
@@ -291,17 +339,29 @@ void App_Main_Process_Poll(void)
 /**
  * @brief 重新定义USART中断回调函数
  */
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+// void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+// {
+//     if (huart->Instance == USART1) // 检测目前串口是否是USART1，即串口屏
+//     {
+//         if (hmi_cmd_flag == 0) // 上一轮的接收是否已经完成（完成后flag会置零）
+//         {
+//             hmi_cmd_flag = 1;    // 重新开始接收下一轮指令（flag重新置一，说明正在接收）
+//             hmi_cmd_size = Size; // 保存指令长度（用于解析指令）
+//         }
+//         //
+//         HAL_UARTEx_ReceiveToIdle_DMA(huart, hmi_rx_buffer, sizeof(hmi_rx_buffer));
+//     }
+// }
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART1) // 检测目前串口是否是USART1，即串口屏
+    if (huart->Instance == USART1)
     {
-        if (hmi_cmd_flag == 0) // 上一轮的接收是否已经完成（完成后flag会置零）
-        {
-            hmi_cmd_flag = 1;    // 重新开始接收下一轮指令（flag重新置一，说明正在接收）
-            hmi_cmd_size = Size; // 保存指令长度（用于解析指令）
-        }
-        //
-        HAL_UARTEx_ReceiveToIdle_DMA(huart, hmi_rx_buffer, sizeof(hmi_rx_buffer));
+        // 因为只收1个字节，所以只要进中断，必定收到了新指令
+        hmi_cmd_flag = 1;
+
+        // 重新开启下一次 1字节 中断接收
+        HAL_UART_Receive_IT(huart, hmi_rx_buffer, 1);
     }
 }
 

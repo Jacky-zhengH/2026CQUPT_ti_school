@@ -1,7 +1,7 @@
 #include "alog.h"
 #include "math.h"
 
-#define R_SERIES_INPUT 1000.0f // 信号源串联的分压电阻 (1kΩ)
+#define R_SERIES_INPUT 9100.0f // 信号源串联的分压电阻 (1kΩ)
 #define R_TEST_LOAD 1000.0f    // 继电器接入的测试负载 (1kΩ)
 #define MIN_VOLTAGE 0.01f      // 极小电压阈值 (10mV)，防除零和底噪
 
@@ -18,7 +18,7 @@ float Algo_Measure_Gain(float v_in_amp, float v_out_amp)
 float Algo_Measure_Rin(float v_source, float v_in_amp)
 {
     float v_diff = v_source - v_in_amp;
-    if (v_diff <= 0.002f)
+    if (v_diff == 0.000f)
         return 2000000.0f; // 压差极小，认为输入阻抗极大
 
     return (v_in_amp / v_diff) * R_SERIES_INPUT;
