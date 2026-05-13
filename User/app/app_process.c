@@ -124,7 +124,7 @@ void Task_Debug_Sample_value(void)
     }
 }
 
-#define FILTER_N 10 // 滑动滤波窗口大小，越大越平滑，但响应越慢
+#define FILTER_N 20 // 滑动滤波窗口大小，越大越平滑，但响应越慢
 
 /**
  * @name   Task_ADC_Data_Update
@@ -197,7 +197,7 @@ static void Task_Measure_StateMachine(void)
         break;
 
     case STATE_RELAY_WAIT:
-        if (HAL_GetTick() - state_timer > 50) // 等 50ms 机械稳定
+        if (HAL_GetTick() - state_timer > 150) // 等 50ms 机械稳定
         {
             current_state = STATE_LOAD;
         }
@@ -236,18 +236,15 @@ static void Task_HMI_Display_Update(void)
         display_timer = HAL_GetTick();
 
         // 刷新实时电压 (对应屏幕 t3, t4, t5)
-        HMI_Update_FloatText("t3", global_v1, "V");
-        HMI_Update_FloatText("t4", global_v2, "V");
-        HMI_Update_FloatText("t5", global_v3, "V");
+        HMI_Update_FloatText("t3", Algo_Round_3(global_v1), "V");
+        HMI_Update_FloatText("t4", Algo_Round_3(global_v2), "V");
+        HMI_Update_FloatText("t5", Algo_Round_3(global_v3), "V");
 
         Debug_printf("[Voltage] Vin: %7.3f V | Vs: %7.3f V | Vout: %7.3f V\r\n",
                      global_v1, global_v2, global_v3);
         // 刷新第二问参数 (对应屏幕 t10, t11, t12)
         HMI_Update_FloatText("t10", global_gain, "");
-        HMI_Update_FloatText("t11", global_rin, "R");
-        HMI_Update_FloatText("t12", global_rout, "R");
-        Debug_printf("[second] 1: %7.3f V | 2: %7.3f V | 3: %7.3f V\r\n",
-                     global_gain, global_rin, global_rout);
+        Debug_printf("[second] Gain: %7.3f ", global_gain);
     }
 }
 
@@ -314,6 +311,12 @@ static void Task_HMI_Command_Process(void)
         {
             Algo_Set_Baseline(global_gain, global_rin, global_rout);
             HMI_Update_StringText("t9", "base");
+        }
+        else if (hmi_rx_buffer[0] == 'A')
+        {
+            HMI_Update_FloatText("t11", global_rin, "R");
+            HMI_Update_FloatText("t12", global_rout, "R");
+            Debug_printf("[third] 2: %7.3f V | 3: %7.3f V\r\n", global_rin, global_rout);
         }
         hmi_cmd_flag = 0;
     }

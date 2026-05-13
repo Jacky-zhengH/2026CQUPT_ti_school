@@ -10,7 +10,7 @@
 //		GPIOB_Pin_12		---> CS
 //***************************
 
-/*�˿ڶ��� */
+/*端口宏定义 */
 #define PORT_FSYNC GPIOB
 #define PIN_FSYNC GPIO_PIN_15
 
@@ -21,7 +21,7 @@
 #define PIN_DAT GPIO_PIN_13
 
 #define PORT_CS GPIOB
-#define PIN_CS GPIO_PIN_12 // ���ֵ�λ��Ƭѡ
+#define PIN_CS GPIO_PIN_12 //
 //****************************************************************
 
 #define FSYNC_0() HAL_GPIO_WritePin(PORT_FSYNC, PIN_FSYNC, GPIO_PIN_RESET)
@@ -40,7 +40,7 @@
 
 /*
 *********************************************************************************************************
-*	�� �� ��: AD9833_Delay
+*	函数名称: AD9833_Delay
 *	����˵��: ʱ����ʱ
 *	��    ��: ��
 *	�� �� ֵ: ��

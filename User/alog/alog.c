@@ -8,6 +8,10 @@
 //---------------------------------------------------------
 // 第二问算法实现
 //---------------------------------------------------------
+float Algo_Round_3(float val)
+{
+    return roundf(val * 1000.0f) / 1000.0f;
+}
 float Algo_Measure_Gain(float v_in_amp, float v_out_amp)
 {
     if (v_in_amp < MIN_VOLTAGE)
@@ -40,9 +44,12 @@ float Algo_Measure_Rout(float v_out_open, float v_out_load)
 //---------------------------------------------------------
 // 第三问：故障诊断核心算法
 //---------------------------------------------------------
-static float base_gain = 10.0f;
-static float base_rin = 1380000.0f;
-static float base_rout = 180.0f;
+//static float base_gain = 10.0f;
+//static float base_rin = 1380000.0f;
+//Zstatic float base_rout = 180.0f;
+static float base_gain = 17.76f;   
+static float base_rin  = 360700.0f; 
+static float base_rout = 152.0f;  // 保留变量，防止外部报错
 
 void Algo_Set_Baseline(float normal_gain, float normal_rin, float normal_rout)
 {

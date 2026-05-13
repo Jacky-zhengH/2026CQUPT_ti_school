@@ -4,6 +4,8 @@
 #include "stdint.h"
 
 // 第二问：参数计算接口
+
+float Algo_Round_3(float val);
 float Algo_Measure_Gain(float v_in_amp, float v_out_amp);
 float Algo_Measure_Rin(float v_source, float v_in_amp);
 float Algo_Measure_Rout(float v_out_open, float v_out_load);
