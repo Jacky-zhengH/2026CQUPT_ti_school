@@ -197,7 +197,7 @@ static void Task_Measure_StateMachine(void)
         break;
 
     case STATE_RELAY_WAIT:
-        if (HAL_GetTick() - state_timer > 150) // 等 50ms 机械稳定
+        if (HAL_GetTick() - state_timer > 200) // 等 50ms 机械稳定
         {
             current_state = STATE_LOAD;
         }
@@ -277,7 +277,7 @@ static void Task_HMI_Command_Process(void)
         if (hmi_rx_buffer[0] == 'E')
         {
             HMI_Update_StringText("t9", "wait...");
-            uint8_t fault_code = Algo_Diagnosis_Fault(global_gain, global_rin, global_rout);
+            uint8_t fault_code = Algo_Diagnosis_Fault(global_gain, global_rin, global_rout, global_v3);
 
             switch (fault_code)
             {

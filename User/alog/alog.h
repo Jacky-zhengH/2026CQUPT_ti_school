@@ -12,6 +12,6 @@ float Algo_Measure_Rout(float v_out_open, float v_out_load);
 
 // 第三问：故障诊断接口
 // 返回值可以是故障类型的代号，例如 0:正常, 1:R1翻倍, 2:R2翻倍...
-uint8_t Algo_Diagnosis_Fault(float current_gain, float current_rin, float current_rout);
+uint8_t Algo_Diagnosis_Fault(float current_gain, float current_rin, float current_rout, float current_uo);
 
 #endif /* __ALGO_H */
